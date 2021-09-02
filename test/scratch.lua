@@ -1,0 +1,1 @@
+io.stderr:write(a, b, c)
