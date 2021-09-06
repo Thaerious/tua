@@ -23,12 +23,32 @@ statement
     | 'for' namelist 'in' explist content_block
     | 'function' funcname funcbody
     | 'local' 'function' NAME funcbody
-    | 'local' namelist ('=' explist)*
+    | 'local' nameExpList
+    | classDeclaration
     ;
 
 content_block : curly_block | do_block;
-curly_block : '{' block '}';
+curly_block : OPEN_BLOCK block CLOSE_BLOCK;
+OPEN_BLOCK : '{' ;
+CLOSE_BLOCK : '}' ;
 do_block : 'do' block 'end';
+
+classDeclaration : classHead classBody ;
+
+classHead : 'class' NAME ('extends' NAME)? ;
+
+classBody
+    : OPEN_BLOCK classElement* CLOSE_BLOCK
+    | classElement* 'end' 
+    ;
+
+classElement : memberField | memberMethod ;
+
+memberField  : nameExpList ';'?;
+memberMethod : type NAME funcbody ';'?;
+nameExpList : namelist ('=' explist)?; // was ('=' explist)*
+
+type : 'void' | 'boolean' | 'number' | 'string' | NAME;
 
 last_statement 
     : 'return' explist?
@@ -47,21 +67,13 @@ varOrExp
     : variable | '(' exp ')'
     ;
 
-namelist
-    : NAME (',' NAME)*
-    ;
+funcname : NAME ('.' NAME)* (':' NAME)? ;
+funcbody : luafuncbody | cfuncbody ;
+luafuncbody : '(' parlist? ')' block 'end';
+cfuncbody : '(' parlist? ')'  OPEN_BLOCK block CLOSE_BLOCK ;
 
-funcname
-    : NAME ('.' NAME)* (':' NAME)?
-    ;
-
-funcbody
-    : '(' parlist? ')' block 'end'
-    ;
-
-parlist
-    : namelist (',' '...')? | '...'
-    ;
+parlist : namelist (',' '...')? | '...' ;
+namelist : NAME (',' NAME)* ;
 
 nameAndArgs
     : (':' NAME)? args
@@ -223,5 +235,4 @@ LINE_COMMENT
 WS : [ \t\r\n]+ -> channel(HIDDEN);
 
 SHEBANG
-    : '#' '!' ~('\n'|'\r')* -> channel(HIDDEN)
-    ;
+    : '#' '!' ~('\n'|'\r')* -> channel(HIDDEN) ;

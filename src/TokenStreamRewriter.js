@@ -1,8 +1,10 @@
+import { Range, Point } from "./Range.js";
+import antlr4 from "antlr4";
+import { Interval } from "antlr4";
 
-class RewriteOperation{
-    constructor(index, text = null){
-        this.index = index;
-        this.lastIndex = index;
+class RewriteOperation {
+    constructor(text = null) {
+        this.range = null;
         this.text = text;
     }
 
@@ -12,12 +14,50 @@ class RewriteOperation{
      * @param {Array} bufferArray An array of strings that serves as the final output. 
      * @returns The next token index to perform an operation on.
      */
-    execute(bufferArray){
-        return this.index
+    execute(bufferArray) {
+        return -1;
     }
 
-    toString(){
-        return `(${this.constructor.name}, ${this.index}, ${this.lastIndex})`;
+    /**
+     * Determine if this op's indices completely contain that
+     * op's indices.
+     * @param {*} that 
+     * @returns 
+     */
+    contains(that) {
+        if (!that) return false;
+        if (this.index <= that.index && this.end >= that.end) return true;
+        return false;
+    }
+
+    /**
+     * Determine if this op's indices intersects that.
+     * Also returns true if contained.
+     * op's indices.
+     * @param {*} that 
+     * @returns 
+     */
+    intersects(that) {
+        if (!that) return false;
+        return this.range.intersects(that.range);
+    }
+}
+
+/**
+ * Replace range {from ... to} with text.
+ * From and to are inclusive.
+ * If text is not provided, removes the range.
+ */
+class ReplaceOperation extends RewriteOperation {
+    constructor(from, to, text = "") {
+        super(text);
+        this.range = new Range(from, to);
+    }
+
+    execute(bufferArray) {
+        if (this.text === "") return this.range.to + 1;
+        bufferArray.push(this.text);
+        return this.range.to + 1;
     }
 }
 
@@ -25,84 +65,101 @@ class RewriteOperation{
  * Replace range {from ... to} with text.
  * If text is not provided, removes the range.
  */
-class ReplaceOperation extends RewriteOperation{
-    constructor(from, to, text = ""){
-        super(from, text);
-        this.lastIndex = to;
+class InsertBeforeOperation extends RewriteOperation {
+    constructor(index, text = "") {
+        super(text);
+        this.range = new Point(index);
     }
 
-    execute(bufferArray){
-        if (this.text === "") return this.index;
-        bufferArray.push(this.text);
-        return this.lastIndex + 1;
-    }
-}
-
-/**
- * Replace range {from ... to} with text.
- * If text is not provided, removes the range.
- */
- class InsertBeforeOperation extends RewriteOperation{
-    constructor(index, text = ""){
-        super(index, text);
-    }
-
-    execute(bufferArray){
-        if (this.text === "") return this.index;
-        bufferArray.push(this.text);
-        return this.index;
+    execute(bufferArray) {
+        if (this.text !== "") bufferArray.push(this.text);
+        return this.range.from;
     }
 }
 
-class TokenStreamRewriter{
-
-    constructor(tokenStream){
+class TokenStreamRewriter {
+    constructor(tokenStream) {
         this.tokenStream = tokenStream;
         this.programs = new Map(); // programName:string -> Array of RewriteOperation objects.
     }
 
-    getProgram(programName = TokenStreamRewriter.DEFAULT_PROGRAM_NAME){
-        if (!this.programs.has(programName)){
+    getProgram(programName = TokenStreamRewriter.DEFAULT_PROGRAM_NAME) {
+        if (!this.programs.has(programName)) {
             this.programs.set(programName, []);
         }
         return this.programs.get(programName);
     }
 
-	replace(from, to, text = "", programName = TokenStreamRewriter.DEFAULT_PROGRAM_NAME) {
-		const program = this.getProgram(programName);
-        program.push(new ReplaceOperation(from, to, text));
-	}
+    replace(source, text = "", programName = TokenStreamRewriter.DEFAULT_PROGRAM_NAME) {
+        const program = this.getProgram(programName);
+        if (source.getSourceInterval){
+            const interval = source.getSourceInterval();
+            program.push(new ReplaceOperation(interval.start, interval.stop, text));
+        }
+    }
 
-    getText(programName = TokenStreamRewriter.DEFAULT_PROGRAM_NAME, start = 0, stop = -1){
+    insertBefore(source, text = "", programName = TokenStreamRewriter.DEFAULT_PROGRAM_NAME) {
+        const program = this.getProgram(programName);
+        program.push(new InsertBeforeOperation(index, text));
+    }
 
+    insertAfter(index, text = "", programName = TokenStreamRewriter.DEFAULT_PROGRAM_NAME) {
+        const program = this.getProgram(programName);
+        program.push(new InsertBeforeOperation(index + 1, text));
+    }
+
+    getText(interval, programName = TokenStreamRewriter.DEFAULT_PROGRAM_NAME) {
+        if (interval === undefined || interval === null) {
+            interval = new Interval(0, this.tokenStream.tokens.length - 1);
+        }
+
+        const buffer = [];
+        const program = this.normalizeProgram(programName);
+        let currentIndex = 0;
+
+        while (currentIndex < this.tokenStream.tokens.length) {
+            if (program.length === 0) {
+                const interval = new Interval(currentIndex, this.tokenStream.tokens.length);
+                buffer.push(this.tokenStream.getText(interval));
+                currentIndex = this.tokenStream.tokens.length
+            }
+            else if (program[0].range.from > currentIndex) {
+                const interval = new Interval(currentIndex, program[0].range.from - 1);
+                buffer.push(this.tokenStream.getText(interval));
+                currentIndex = program[0].range.from;
+            }
+            else {                
+                currentIndex = program.shift().execute(buffer);
+            }
+        }
+
+        return buffer.join("");
     }
 
     /**
-     * Combine or remove opertions to remove the ambiguity of multiple
-     * operstions per index.  Each index will have zero or one operations
-     * working on it.
+     * Order the operation and remove redundant operations.
      * @param {*} program An array of RewriteOpertion objects.
      */
-    normalizeProgram(programName = TokenStreamRewriter.DEFAULT_PROGRAM_NAME){
+    normalizeProgram(programName = TokenStreamRewriter.DEFAULT_PROGRAM_NAME) {
         const program = this.getProgram(programName);
+        const newProgram = [];
 
-        program.sort((first, second)=>{
-            return first.index - second.index; 
+        program.sort((first, second) => {
+            if (first.range.from == second.range.from) {
+                return second.range.to - first.range.to;
+            }
+            return first.range.from - second.range.from;
         });
 
-        for (operation of program){
-            if (operation.constructor.name !== ReplaceOperation) continue;
-            this.__removeContainedInsertions(program, )
+        for (let i = 0; i < program.length; i++) {
+            const operation = program[i];
+            const prevOperation = newProgram[newProgram.length - 1];
+
+            if (operation.intersects(prevOperation)) continue;
+            newProgram.push(operation);
         }
 
-        return program;
-    }
-
-    __removeContainedInsertions(program, from, to){
-        for (operation of program){
-            if (operation.constructor.name !== ReplaceOperation) continue;
-            this.__removeContainedInsertions(program, )
-        }
+        return newProgram;
     }
 }
 

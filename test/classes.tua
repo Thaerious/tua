@@ -1,0 +1,13 @@
+
+class FooBar {
+    a, b, c = 0, 1, 2;
+    d, e, f = 100;
+    
+    number foo(){
+        print("foo");
+    }
+
+    string bar(){
+        print("bar");
+    }
+}
