@@ -1,97 +1,37 @@
+import {ClassRecord, DiscreteClassRecord} from "./ClassRecord.js";
 
-class TypeRecord {
-    /**
-     * @param {ClassDeclarationContext} ctx 
-     */
-    constructor(ctx) {
-        this.ctx = ctx;
-        this.memberFields = {};
-    }
-
-    addMemberField(name, value) {
-        this.memberFields[name] = value;
-    }
-
-    printObject(){
-        return this.printDeclaration() + "\n" + this.printConstructor();
-    }
-
-    printDeclaration() {
-        let memberFieldKeys = Object.keys(this.memberFields);
-        if (memberFieldKeys.length === 0) return `${this.ctx.NAME()} = {};`;
-        let text = `${this.ctx.NAME()} = {\n`;
-
-        for (let key of memberFieldKeys) {
-            if (this.memberFields[key]) {
-                text = text + "\t" + key + " = " + this.memberFields[key] + ";\n";
-            }
-            else {
-                text = text + "\t" + key + " = nil;\n";
-            }
-        }
-        return text + "};";
-    }
-
-    printConstructor() {
-        let memberFieldKeys = Object.keys(this.memberFields);
-        let text = `function ${this.ctx.NAME()}:new()\n`;
-        text = text + "local child = {};\n";
-        text = text + "setmetatable(child, {__index = self});\n";
-        text = text + "return child;\n";
-        text = text + "end;\n";
-        return text;
-    }
-};
-
+/**
+ * A record of declared types.
+ * Each type must have a .name and a .ctx field.
+ */
 class TypeTable {
 
     constructor() {
         this.table = {};
+        this.map = new Map();
         this.scope = [];
+
+        this.table["string"] = new DiscreteClassRecord("string");
+        this.table["number"] = new DiscreteClassRecord("number");
+        this.table["boolean"] = new DiscreteClassRecord("boolean");
+        this.table["void"] = new DiscreteClassRecord("void");
     }
 
-    get last(){
-        return this.scope[this.scope.length - 1];
+    has(typename) {
+        return this.table[typename] !== undefined;
     }
 
-    /**
-     * @param {ClassDeclarationContext} ctx 
-     * @returns 
-     */
-    has(ctx) {
-        return this.table[ctx.NAME()] !== undefined;
+    add(record) {
+        this.table[record.name] = record;
+        this.map.set(record.ctx, record);
     }
-
-    /**
-     * @param {ClassDeclarationContext} ctx 
-     * @returns 
-     */
-    enterClassScope(ctx) {
-        const record = new TypeRecord(ctx);
-        this.table[ctx.NAME()] = record;
-        this.scope.push(ctx.NAME());
-        return record;
-    }
-
-    exitClassScope(){
-        this.scope.pop();
-    }
-
-    getCurrentScope(){
-        if (this.scope.length === 0) return "";
-        let text = this.scope[0];
-        for (let i = 1; i < this.scope.length; i++){
-            text = text + "." + this.scope[i];
-        }
-        return text;
-    }
-
+   
     get(name) {
         return this.table[name];
     }
 
-    getLast() {
-        return this.get(this.last);
+    findContext(ctx){
+        return this.map.get(ctx);
     }
 };
 

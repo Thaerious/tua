@@ -1,104 +1,66 @@
 grammar Tua;
 
-chunk
-    : block EOF
-    ;
+chunk : includes block EOF ;
+includes : include* ;
+include : '#include' string ;
+block : statement* last_statement? ;
 
-block
-    : statement* last_statement?
-    ;
-
-statement 
+statement
     : ';'
     | varlist '=' explist
     | functioncall
-    | label
     | 'break'
-    | 'goto' NAME
-    | content_block  
-    | 'while' exp content_block
+    | do_block
+    | 'while' exp do_block
     | 'repeat' block 'until' exp
     | 'if' exp 'then' block ('elseif' exp 'then' block)* ('else' block)? 'end'
-    | 'for' NAME '=' exp ',' exp (',' exp)? content_block
-    | 'for' namelist 'in' explist content_block
-    | 'function' funcname funcbody
-    | 'local' 'function' NAME funcbody
-    | 'local' nameExpList
+    | 'for' NAME '=' exp ',' exp (',' exp)? do_block
+    | 'for' namelist 'in' explist do_block
+    | functionDeclaration
     | classDeclaration
     ;
 
-content_block : curly_block | do_block;
-curly_block : OPEN_BLOCK block CLOSE_BLOCK;
-OPEN_BLOCK : '{' ;
-CLOSE_BLOCK : '}' ;
 do_block : 'do' block 'end';
-
 classDeclaration : classHead classBody ;
-
 classHead : 'class' NAME ('extends' NAME)? ;
 
-classBody
-    : OPEN_BLOCK classElement* CLOSE_BLOCK
-    | classElement* 'end' 
-    ;
+classBody : classElement* 'end' ;
 
 classElement : memberField | memberMethod ;
 
 memberField  : nameExpList ';'?;
-memberMethod : type NAME funcbody ';'?;
+memberMethod : NAME '(' funcParamList? ')' funcbody ';'?;
 nameExpList : namelist ('=' explist)?; // was ('=' explist)*
+namelist : NAME (',' NAME)* ;
 
-type : 'void' | 'boolean' | 'number' | 'string' | NAME;
+// type : 'void' | 'boolean' | 'number' | 'string' | NAME;
 
-last_statement 
+last_statement
     : 'return' explist?
     | 'break'
     ;
 
-label
-    : '::' NAME '::'
-    ;
+functioncall : varOrExp nameAndArgs+ ;
+varOrExp : variable | '(' exp ')' ;
 
-functioncall
-    : varOrExp nameAndArgs+
-    ;
+functionDeclaration: 'function' funcname '(' funcParamList? ')' funcbody ;
 
-varOrExp
-    : variable | '(' exp ')'
-    ;
+anonfunc : 'function' '(' funcParamList? ')' funcbody ;
+funcname : NAME ('.' NAME)* ;
+funcbody : block 'end';
+funcParamList : NAME (',' NAME)* (',' '...')? | '...' ;
 
-funcname : NAME ('.' NAME)* (':' NAME)? ;
-funcbody : luafuncbody | cfuncbody ;
-luafuncbody : '(' parlist? ')' block 'end';
-cfuncbody : '(' parlist? ')'  OPEN_BLOCK block CLOSE_BLOCK ;
+nameAndArgs : (':' NAME)? args ;
 
-parlist : namelist (',' '...')? | '...' ;
-namelist : NAME (',' NAME)* ;
+args : '(' explist? ')' | tableconstructor | string ;
 
-nameAndArgs
-    : (':' NAME)? args
-    ;
+tableconstructor : '{' fieldlist? '}' ;
 
-args
-    : '(' explist? ')' | tableconstructor | STRING
-    ;
+fieldlist : field (fieldsep field)* fieldsep? ;
 
-tableconstructor
-    : '{' fieldlist? '}'
-    ;
+fieldsep : ',' | ';' ;
 
-fieldlist
-    : field (fieldsep field)* fieldsep?
-    ;
-
-fieldsep
-    : ',' | ';'
-    ;
-
-field
-    : '[' exp ']' '=' exp | NAME '=' exp | exp
-    ;
-
+field : '[' exp ']' '=' exp | NAME '=' exp | exp ;
 
 varlist : variable (',' variable)* ;
 
@@ -112,9 +74,9 @@ exp
     | 'false' 
     | 'true'
     | number
-    | STRING
+    | string
     | '...'
-    | functiondef
+    | anonfunc
     | prefixexp
     | tableconstructor
     | <assoc=right> exp '^' exp
@@ -128,7 +90,6 @@ exp
     | exp operatorBitwise exp
     ;
 
-functiondef : 'function' funcbody ;
 prefixexp : varOrExp nameAndArgs* ;
 operatorMulDivMod : '*' | '/' | '%' | '//';
 operatorAddSub : '+' | '-';
@@ -138,10 +99,12 @@ operatorUnary : 'not' | '#' | '-' | '~';
 
 number : INT | HEX | FLOAT | HEX_FLOAT ;
 
-STRING 
+string locals [int i=0]
+    : QUOTE_STRING | '[' NESTED_STR ']' ;
+
+QUOTE_STRING
     : '"' ( EscapeSequence | ~('\\'|'"') )* '"'
     | '\'' ( EscapeSequence | ~('\''|'\\') )* '\''
-    | '[' NESTED_STR ']'
     ;
 
 fragment
@@ -180,7 +143,6 @@ HexDigit
 
 // lexical
 
-fragment
 NESTED_STR 
     : '=' NESTED_STR '='
     | '[' .*? ']'
@@ -212,9 +174,7 @@ ExponentPart
     ;
 
 fragment
-HexExponentPart
-    : [pP] [+-]? Digit+
-    ;
+HexExponentPart : [pP] [+-]? Digit+ ;
 
 NAME : [a-zA-Z_][a-zA-Z0-9_]* ;
 
