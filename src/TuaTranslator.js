@@ -138,6 +138,10 @@ class TuaTranslator{
         this.includer = new Includer();
     }
 
+    getRecord(index){
+        return this.includer.records[this.includer.order[index]];
+    }
+
     parseClasses(){
         for (let filename in this.includer.records){
             const record = this.includer.records[filename];
@@ -168,6 +172,18 @@ class TuaTranslator{
             console.log("-- " + filename);
             this.printResult(filename);
         }
+    }
+
+    saveResult(filename){
+        console.log("saving to " + filename);
+        FS.rmSync(filename);
+        for (const src of this.includer.order){
+            const record = this.includer.records[src];
+            const parser = record.parser;
+            const root = record.root;
+            FS.appendFileSync(filename, "---> " + src + "\n");           
+            FS.appendFileSync(filename, record.tsr.getText());           
+        }        
     }
 }
 

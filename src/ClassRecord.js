@@ -55,23 +55,23 @@ class ClassRecord extends TuaListener{
                 text = text + "\t" + key + " = nil;\n";
             }
         }
-        return text + "};";
+        return text + "};\n";
     }
 
     printConstructor() {
         let text = "";
         if (this.newParameterList){
             text = `function ${this.name}:new(${this.newParameterList.getText()})\n`;
-            text = text + "local child = {};\n";
-            text = text + "setmetatable(child, {__index = self});\n";    
-            text = text + `${this.name}:constructor(${this.newParameterList.getText()});\n`;
+            text = text + "\tlocal child = {};\n";
+            text = text + "\tsetmetatable(child, {__index = self});\n";    
+            text = text + `\t${this.name}:constructor(${this.newParameterList.getText()});\n`;
         } else {
-            text = `function ${this.name}:new()\n`;
-            text = text + "local child = {};\n";
-            text = text + "setmetatable(child, {__index = self});\n";    
+            text = `\tfunction ${this.name}:new()\n`;
+            text = text + "\tlocal child = {};\n";
+            text = text + "\tsetmetatable(child, {__index = self});\n";    
         }
 
-        text = text + "return child;\n";
+        text = text + "\treturn child;\n";
         text = text + "end;\n";
         return text;
     }
@@ -97,11 +97,18 @@ class ClassRecord extends TuaListener{
             }
         }
 
-        this.tsr.replace(ctx, "");
+        const interval = ctx.getSourceInterval();
+        const tokens = this.tsr.tokenStream;
+
+        const left = tokens.getHiddenTokensToLeft(interval.start, 2);
+        for (let t of left) this.tsr.remove(t);
+
+        this.tsr.remove(ctx);
     }
 
     exitClassDeclaration(ctx){
-        this.tsr.replace(ctx.classHead(), this.printObject());                
+        this.tsr.replace(ctx.classHead(), this.printObject());  
+        this.tsr.replace(ctx.classBody().END(), "");              
     }
 };
 

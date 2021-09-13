@@ -13,18 +13,18 @@ statement
     | do_block
     | 'while' exp do_block
     | 'repeat' block 'until' exp
-    | 'if' exp 'then' block ('elseif' exp 'then' block)* ('else' block)? 'end'
+    | 'if' exp 'then' block ('elseif' exp 'then' block)* ('else' block)? END
     | 'for' NAME '=' exp ',' exp (',' exp)? do_block
     | 'for' namelist 'in' explist do_block
     | functionDeclaration
     | classDeclaration
     ;
 
-do_block : 'do' block 'end';
+do_block : 'do' block END;
 classDeclaration : classHead classBody ;
 classHead : 'class' NAME ('extends' NAME)? ;
 
-classBody : classElement* 'end' ;
+classBody : classElement* END ;
 
 classElement : memberField | memberMethod ;
 
@@ -47,7 +47,7 @@ functionDeclaration: 'function' funcname '(' funcParamList? ')' funcbody ;
 
 anonfunc : 'function' '(' funcParamList? ')' funcbody ;
 funcname : NAME ('.' NAME)* ;
-funcbody : block 'end';
+funcbody : block END;
 funcParamList : NAME (',' NAME)* (',' '...')? | '...' ;
 
 nameAndArgs : (':' NAME)? args ;
@@ -176,10 +176,14 @@ ExponentPart
 fragment
 HexExponentPart : [pP] [+-]? Digit+ ;
 
+/* keywords ------------------- */
+END : 'end' ;
+/* ---------------------------- */
+
 NAME : [a-zA-Z_][a-zA-Z0-9_]* ;
 
 COMMENT
-    : '--[' NESTED_STR ']' -> channel(HIDDEN)
+    : '--[' NESTED_STR ']' -> channel(1)
     ;
 
 LINE_COMMENT
@@ -189,10 +193,10 @@ LINE_COMMENT
     | '[' '='* ~('='|'['|'\r'|'\n') ~('\r'|'\n')*   // --[==AA
     | ~('['|'\r'|'\n') ~('\r'|'\n')*                // --AAA
     ) ('\r\n'|'\r'|'\n'|EOF)
-    -> channel(HIDDEN)
+    -> channel(1)
     ;
 
-WS : [ \t\r\n]+ -> channel(HIDDEN);
+WS : [ \t\r\n]+ -> channel(2);
 
 SHEBANG
     : '#' '!' ~('\n'|'\r')* -> channel(HIDDEN) ;

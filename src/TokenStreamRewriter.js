@@ -1,6 +1,7 @@
 import { Range, Point } from "./Range.js";
 import antlr4 from "antlr4";
 import { Interval } from "antlr4";
+import {Token} from "antlr4";
 
 class RewriteOperation {
     constructor(text = null) {
@@ -77,6 +78,10 @@ class InsertBeforeOperation extends RewriteOperation {
     }
 }
 
+class NoOperation{
+    execute(){}
+}
+
 class TokenStreamRewriter {
     constructor(tokenStream) {
         this.tokenStream = tokenStream;
@@ -90,22 +95,40 @@ class TokenStreamRewriter {
         return this.programs.get(programName);
     }
 
+    remove(source, programName = TokenStreamRewriter.DEFAULT_PROGRAM_NAME){
+        this.replace(source, "", programName);
+    }
+
     replace(source, text = "", programName = TokenStreamRewriter.DEFAULT_PROGRAM_NAME) {
         const program = this.getProgram(programName);
         if (source.getSourceInterval){
             const interval = source.getSourceInterval();
-            program.push(new ReplaceOperation(interval.start, interval.stop, text));
+            const operation = new ReplaceOperation(interval.start, interval.stop, text)
+            program.push(operation);
+            operation.remove = this.tokenStream.getText(interval);
+            return operation;
+        }        
+        else if (source instanceof Token){
+            const operation = new ReplaceOperation(source.tokenIndex, source.tokenIndex, text)
+            program.push(operation);
+            operation.remove = this.tokenStream.getText(new Interval(source.tokenIndex, source.tokenIndex));
+            return operation;            
         }
+        return new NoOperation();
     }
 
     insertBefore(source, text = "", programName = TokenStreamRewriter.DEFAULT_PROGRAM_NAME) {
         const program = this.getProgram(programName);
-        program.push(new InsertBeforeOperation(index, text));
+        const operation = new InsertBeforeOperation(index, text);
+        program.push(operation);
+        return operation;
     }
 
     insertAfter(index, text = "", programName = TokenStreamRewriter.DEFAULT_PROGRAM_NAME) {
         const program = this.getProgram(programName);
-        program.push(new InsertBeforeOperation(index + 1, text));
+        const operation = new InsertBeforeOperation(index + 1, text);
+        program.push(operation);
+        return operation;
     }
 
     getText(interval, programName = TokenStreamRewriter.DEFAULT_PROGRAM_NAME) {

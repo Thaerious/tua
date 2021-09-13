@@ -1,13 +1,25 @@
-
-class FooBar {
+class FooBar
+    x, y, z;
     a, b, c = 0, 1, 2;
-    d, e, f = 100;
+    d, e, f = "ima string";
     
-    number foo(){
-        print("foo");
-    }
+    constructor(a, b)
+        self.x = a + b;
+    end
 
-    string bar(){
+    foo()
+        print("foo");
+    end
+
+    bar()
         print("bar");
-    }
-}
+    end
+end
+
+function toNumber(a)
+
+end
+
+function foobed(a)
+
+end
