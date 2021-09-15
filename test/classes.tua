@@ -16,10 +16,18 @@ class FooBar
     end
 end
 
-function toNumber(a)
+function x()
+    
+end
+
+class Snafu extends FooBar
+    
+    -- Ima constructor
+    constructor(a, b)
+        self.x = a * b;
+    end
 
 end
 
-function foobed(a)
-
-end
+a = Snafu:new(3, 4);
+print(a.x);

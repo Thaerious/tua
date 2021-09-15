@@ -144,6 +144,7 @@ class TuaTranslator{
 
     parseClasses(){
         for (let filename in this.includer.records){
+            console.log("source: " + filename);
             const record = this.includer.records[filename];
             const classParser = new TuaClassParser(record.tsr);
             antlr4.tree.ParseTreeWalker.DEFAULT.walk(classParser, record.root);

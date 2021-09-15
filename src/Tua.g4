@@ -1,4 +1,4 @@
-grammar Tua;
+parser grammar Tua;
 
 chunk : includes block EOF ;
 includes : include* ;
@@ -10,21 +10,21 @@ statement
     | varlist '=' explist
     | functioncall
     | 'break'
-    | do_block
-    | 'while' exp do_block
+    | doBlock
+    | 'while' exp doBlock
     | 'repeat' block 'until' exp
-    | 'if' exp 'then' block ('elseif' exp 'then' block)* ('else' block)? END
-    | 'for' NAME '=' exp ',' exp (',' exp)? do_block
-    | 'for' namelist 'in' explist do_block
+    | 'if' exp 'then' block ('elseif' exp 'then' block)* ('else' block)? 'end'
+    | 'for' NAME '=' exp ',' exp (',' exp)? doBlock
+    | 'for' namelist 'in' explist doBlock
     | functionDeclaration
     | classDeclaration
     ;
 
-do_block : 'do' block END;
+doBlock : 'do' block 'end';
 classDeclaration : classHead classBody ;
 classHead : 'class' NAME ('extends' NAME)? ;
 
-classBody : classElement* END ;
+classBody : classElement* 'end' ;
 
 classElement : memberField | memberMethod ;
 
@@ -47,7 +47,7 @@ functionDeclaration: 'function' funcname '(' funcParamList? ')' funcbody ;
 
 anonfunc : 'function' '(' funcParamList? ')' funcbody ;
 funcname : NAME ('.' NAME)* ;
-funcbody : block END;
+funcbody : block 'end';
 funcParamList : NAME (',' NAME)* (',' '...')? | '...' ;
 
 nameAndArgs : (':' NAME)? args ;
@@ -79,7 +79,11 @@ exp
     | anonfunc
     | prefixexp
     | tableconstructor
-    | <assoc=right> exp '^' exp
+    | compoundExpression
+    ;
+
+compoundExpression
+    : <assoc=right> exp '^' exp
     | operatorUnary exp
     | exp operatorMulDivMod exp
     | exp operatorAddSub exp
@@ -148,13 +152,8 @@ NESTED_STR
     | '[' .*? ']'
     ;
 
-INT
-    : Digit+
-    ;
-
-HEX
-    : '0' [xX] HexDigit+
-    ;
+INT : Digit+ ;
+HEX : '0' [xX] HexDigit+ ;
 
 FLOAT
     : Digit+ '.' Digit* ExponentPart?
@@ -176,15 +175,9 @@ ExponentPart
 fragment
 HexExponentPart : [pP] [+-]? Digit+ ;
 
-/* keywords ------------------- */
-END : 'end' ;
-/* ---------------------------- */
-
 NAME : [a-zA-Z_][a-zA-Z0-9_]* ;
 
-COMMENT
-    : '--[' NESTED_STR ']' -> channel(1)
-    ;
+COMMENT : '--[' NESTED_STR ']' -> channel(HIDDEN) ;
 
 LINE_COMMENT
     : '--'

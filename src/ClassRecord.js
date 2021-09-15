@@ -1,6 +1,5 @@
 import TuaListener from "../antlr/src/TuaListener.js";
 import antlr4 from 'antlr4';
-import {ScopeTable} from "./ScopeManager.js";
 
 class DiscreteClassRecord{
     constructor(name){
@@ -28,6 +27,7 @@ class ClassRecord extends TuaListener{
         this.memberFieldValues = {};
         antlr4.tree.ParseTreeWalker.DEFAULT.walk(this, ctx);
         this.newParameterList = null;
+        this.extendClassName = null;
     }
 
     get name(){
@@ -44,36 +44,59 @@ class ClassRecord extends TuaListener{
 
     printDeclaration() {
         let memberFieldKeys = Object.keys(this.memberFieldValues);
-        if (memberFieldKeys.length === 0) return `${this.ctx.NAME()} = {};`;
-        let text = `${this.name} = {\n`;
+        let text = "";
 
-        for (let key of memberFieldKeys) {
-            if (this.memberFieldValues[key]) {
-                text = text + "\t" + key + " = " + this.memberFieldValues[key] + ";\n";
+        if (memberFieldKeys.length !== 0){
+            text = text + `${this.name} = {\n`;
+
+            for (let key of memberFieldKeys) {
+                if (this.memberFieldValues[key]) {
+                    text = text + "\t" + key + " = " + this.memberFieldValues[key] + ";\n";
+                }
+                else {
+                    text = text + "\t" + key + " = nil;\n";
+                }
             }
-            else {
-                text = text + "\t" + key + " = nil;\n";
-            }
+            text = text + "};\n";
+        } else {
+            text = text + `${this.name} = {}\n`
         }
-        return text + "};\n";
+
+        if (this.extendClassName){
+            text = text + `setmetatable(${this.name}, {__index = ${this.extendClassName}});`
+        }
+
+        return text;
     }
 
     printConstructor() {
         let text = "";
+
+        let parameterList = "";
+        let constructorCall = "";
+        let localChild = `local child = {};`;
+        let setMetaTable = `setmetatable(child, {__index = self});`;                
+
         if (this.newParameterList){
-            text = `function ${this.name}:new(${this.newParameterList.getText()})\n`;
-            text = text + "\tlocal child = {};\n";
-            text = text + "\tsetmetatable(child, {__index = self});\n";    
-            text = text + `\t${this.name}:constructor(${this.newParameterList.getText()});\n`;
-        } else {
-            text = `\tfunction ${this.name}:new()\n`;
-            text = text + "\tlocal child = {};\n";
-            text = text + "\tsetmetatable(child, {__index = self});\n";    
+            parameterList = this.newParameterList.getText();
+            constructorCall = `\t${this.name}:constructor(${this.newParameterList.getText()});\n`;
         }
 
+        text = `function ${this.name}:new(${parameterList})\n`;
+        text = text + "\t" + localChild + "\n";
+        text = text + "\t" + setMetaTable + "\n";    
+        text = text + constructorCall;
         text = text + "\treturn child;\n";
         text = text + "end;\n";
         return text;
+    }
+
+    enterSuperCall(ctx){
+        this.superArgs = ctx.args();
+    }
+
+    enterExtendHead(ctx){
+        this.extendClassName = ctx.NAME().getText();
     }
 
     enterMemberMethod(ctx){
