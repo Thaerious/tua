@@ -1,8 +1,6 @@
 class FooBar
-    x, y, z;
-    a, b, c = 0, 1, 2;
-    d, e, f = "ima string";
-    
+    x, y, z;    
+
     constructor(a, b)
         self.x = a + b;
     end
@@ -10,24 +8,19 @@ class FooBar
     foo()
         print("foo");
     end
-
-    bar()
-        print("bar");
-    end
-end
-
-function x()
-    
 end
 
 class Snafu extends FooBar
-    
-    -- Ima constructor
     constructor(a, b)
-        self.x = a * b;
+        super:constructor(a, b);
+        self.x = self.x * 2;
     end
 
+    bar()
+        print(super:foo())
+    end
 end
 
 a = Snafu:new(3, 4);
 print(a.x);
+a.bar();

@@ -1,26 +1,10 @@
-FooBar = {
-    a = 0,
-    b = 1,
-    c = 2,
-    d = 100,
-    e = nil,
-    f = nil
-};
+a = {
+    x = 2;
+}
 
-function FooBar:new()
-    local child = {};
-    setmetatable(child, {
-        __index = self
-    });
-    return child;
+a.bar = function(self)
+    b = self.x + 4;
+    return b;
 end
 
-function FooBar:foo()
-    print("fooz");
-end
-
-function FooBar:bar()
-    print("barz");
-end
-
-print(FooBar:new().foo());
+print(a:bar(2))

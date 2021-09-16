@@ -27,11 +27,13 @@ class ClassRecord extends TuaListener{
         this.memberFieldValues = {};
         antlr4.tree.ParseTreeWalker.DEFAULT.walk(this, ctx);
         this.newParameterList = null;
-        this.extendClassName = null;
+
+        this.isType = null; // the class name (object invoked by new have this type)
+        this.parentType = null; // the name of parent class
     }
 
     get name(){
-        return this.ctx.classHead().NAME();
+        return this.isType;
     }
 
     recordMemberField(varName, initialValue = "nil") {
@@ -62,8 +64,8 @@ class ClassRecord extends TuaListener{
             text = text + `${this.name} = {}\n`
         }
 
-        if (this.extendClassName){
-            text = text + `setmetatable(${this.name}, {__index = ${this.extendClassName}});`
+        if (this.parentType){
+            text = text + `setmetatable(${this.name}, {__index = ${this.parentType}});`
         }
 
         return text;
@@ -92,11 +94,13 @@ class ClassRecord extends TuaListener{
     }
 
     enterSuperCall(ctx){
-        this.superArgs = ctx.args();
-    }
+        let args = "(self)"
+        if (ctx.args().explist()){
+            args = "(self," + ctx.args().explist().getText() + ")";
+        }
 
-    enterExtendHead(ctx){
-        this.extendClassName = ctx.NAME().getText();
+        const text = `${this.parentType}.${ctx.NAME()}${args}`;
+        this.tsr.replace(ctx, text);
     }
 
     enterMemberMethod(ctx){
@@ -127,6 +131,11 @@ class ClassRecord extends TuaListener{
         for (let t of left) this.tsr.remove(t);
 
         this.tsr.remove(ctx);
+    }
+
+    enterClassHead(ctx){
+        this.isType = ctx.className().getText();
+        if (ctx.parentName()) this.parentType = ctx.parentName().getText();
     }
 
     exitClassDeclaration(ctx){

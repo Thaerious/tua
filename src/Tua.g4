@@ -9,22 +9,26 @@ statement
     : ';'
     | varlist '=' explist
     | functioncall
+    | superCall
     | 'break'
     | doBlock
     | 'while' exp doBlock
     | 'repeat' block 'until' exp
-    | 'if' exp 'then' block ('elseif' exp 'then' block)* ('else' block)? 'end'
+    | 'if' exp 'then' block ('elseif' exp 'then' block)* ('else' block)? END
     | 'for' NAME '=' exp ',' exp (',' exp)? doBlock
     | 'for' namelist 'in' explist doBlock
     | functionDeclaration
     | classDeclaration
     ;
 
-doBlock : 'do' block 'end';
+doBlock : 'do' block END;
 classDeclaration : classHead classBody ;
-classHead : 'class' NAME ('extends' NAME)? ;
 
-classBody : classElement* 'end' ;
+classHead : 'class' className ('extends' parentName)? ;
+className : NAME;
+parentName : NAME;
+
+classBody : classElement* END ;
 
 classElement : memberField | memberMethod ;
 
@@ -40,6 +44,8 @@ last_statement
     | 'break'
     ;
 
+superCall : SUPER ':' NAME args ;
+
 functioncall : varOrExp nameAndArgs+ ;
 varOrExp : variable | '(' exp ')' ;
 
@@ -47,12 +53,12 @@ functionDeclaration: 'function' funcname '(' funcParamList? ')' funcbody ;
 
 anonfunc : 'function' '(' funcParamList? ')' funcbody ;
 funcname : NAME ('.' NAME)* ;
-funcbody : block 'end';
+funcbody : block END;
 funcParamList : NAME (',' NAME)* (',' '...')? | '...' ;
 
 nameAndArgs : (':' NAME)? args ;
 
-args : '(' explist? ')' | tableconstructor | string ;
+args : '(' explist? ')' ;
 
 tableconstructor : '{' fieldlist? '}' ;
 
@@ -66,7 +72,12 @@ varlist : variable (',' variable)* ;
 
 explist : exp (',' exp)* ;
 
-variable : (NAME | '(' exp ')' varSuffix) varSuffix* ;
+variable 
+    : NAME varSuffix*
+    | '(' exp ')' varSuffix varSuffix*
+    | superCall varSuffix*
+    ;
+
 varSuffix : nameAndArgs* ('[' exp ']' | '.' NAME) ;
 
 exp
@@ -142,6 +153,9 @@ HexDigit
     ;
 
 // lexical
+
+END : 'end' ;
+SUPER : 'super';
 
 NESTED_STR 
     : '=' NESTED_STR '='
