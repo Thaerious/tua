@@ -1,4 +1,4 @@
-parser grammar Tua;
+grammar Tua;
 
 chunk : includes block EOF ;
 includes : include* ;
@@ -79,11 +79,7 @@ exp
     | anonfunc
     | prefixexp
     | tableconstructor
-    | compoundExpression
-    ;
-
-compoundExpression
-    : <assoc=right> exp '^' exp
+    | <assoc=right> exp '^' exp
     | operatorUnary exp
     | exp operatorMulDivMod exp
     | exp operatorAddSub exp
