@@ -56,7 +56,7 @@ class Includer {
      * @param {*} parent record for the parent file
      * @returns 
      */
-    add(filename, includeContext = undefined, parent = undefined){
+    add(filname, inputText = undefined, includeContext = undefined, parent = undefined){
         if (this.records[filename]){            
             const msg = `Warning: ${parent?.filename} ${includeContext.start.line}:${includeContext.start.column} file previously included: ${filename}`;  
             console.error(msg);
@@ -65,7 +65,7 @@ class Includer {
 
         try{
             const record = {};
-            const input  = FS.readFileSync(filename);
+            const input  = inputText ?? FS.readFileSync(filename);
             const chars  = new antlr4.InputStream(input.toString());
             const lexer  = new TuaLexer(chars);
     
@@ -112,7 +112,7 @@ class TuaIncludeParser{
             let filename = include.string().getText();            
             filename = filename.substr(1, filename.length - 2);
             const parent = this.record.filename;
-            this.includer.add(filename, include, this.record);
+            this.includer.add(filename, undefined, include, this.record);
             const text = record.tokens.getText(include);
             this.record.tsr.replace(include, `---> ${text}`);
         }
@@ -151,8 +151,8 @@ class TuaTranslator{
         }
     }
 
-    addSource(filepath){
-        this.includer.add(filepath);
+    addSource(filepath, inputText = undefined){
+        this.includer.add(filepath, inputText);
     }
 
     printSource(filename){
@@ -184,8 +184,12 @@ class TuaTranslator{
             const root = record.root;
             FS.appendFileSync(filename, "---> " + src + "\n");           
             FS.appendFileSync(filename, record.tsr.getText());           
-        }        
+        }
     }
+}
+
+process(inputText){
+
 }
 
 function seekParent(ctx, parentType){
