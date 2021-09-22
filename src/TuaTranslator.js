@@ -56,7 +56,7 @@ class Includer {
      * @param {*} parent record for the parent file
      * @returns 
      */
-    add(filname, inputText = undefined, includeContext = undefined, parent = undefined){
+    add(filename, inputText = undefined, includeContext = undefined, parent = undefined){
         if (this.records[filename]){            
             const msg = `Warning: ${parent?.filename} ${includeContext.start.line}:${includeContext.start.column} file previously included: ${filename}`;  
             console.error(msg);
@@ -107,13 +107,13 @@ class TuaIncludeParser{
         this.record = record;
     }
 
-    run(){
+    run(){        
         for (let include of this.record.root.includes().include()){
-            let filename = include.string().getText();            
-            filename = filename.substr(1, filename.length - 2);
+            let filename = include.string().getText();              
+            filename = filename.substr(1, filename.length - 2);            
             const parent = this.record.filename;
             this.includer.add(filename, undefined, include, this.record);
-            const text = record.tokens.getText(include);
+            const text = this.record.tokens.getText(include);
             this.record.tsr.replace(include, `---> ${text}`);
         }
     }
@@ -161,44 +161,34 @@ class TuaTranslator{
         console.log(parser.getTokenStream().getText(root));
     }
 
-    printResult(filename){
-        const record = this.includer.records[filename];
-        const parser = record.parser;
-        const root = record.root;
-        console.log(record.tsr.getText());
-    }
-
-    print(){
+    /**
+     * Write the translated code to string.
+     */
+    toString(){
+        let rvalue = "";
         for (const filename of this.includer.order){
-            console.log("-- " + filename);
-            this.printResult(filename);
+            const record = this.includer.records[filename];
+            const code = record.tsr.getText()
+            rvalue = rvalue + code;
         }
+        return rvalue;
     }
 
+    /**
+     * Write the translated code to file.
+     * @param {*} filename 
+     */
     saveResult(filename){
         console.log("saving to " + filename);
-        FS.rmSync(filename);
+        if (FS.existsSync(filename)) FS.rmSync(filename);
         for (const src of this.includer.order){
             const record = this.includer.records[src];
             const parser = record.parser;
             const root = record.root;
-            FS.appendFileSync(filename, "---> " + src + "\n");           
+            FS.appendFileSync(filename, "---> file " + src + "\n");           
             FS.appendFileSync(filename, record.tsr.getText());           
         }
     }
-}
-
-process(inputText){
-
-}
-
-function seekParent(ctx, parentType){
-    let current = ctx;
-    while (current instanceof TuaParser.FunctionDeclarationContext === false){
-        current = current.parentCtx;
-        if (!current) return undefined;
-    }
-    return current;
 }
 
 export default TuaTranslator;
