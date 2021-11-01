@@ -7,6 +7,7 @@ import TuaLexer from "../antlr/src/TuaLexer.js";
 import FS from "fs";
 import { error } from "antlr4";
 import { setUncaughtExceptionCaptureCallback } from "process";
+import Path from "path";
 
 class TreeNode {
     constructor(data = null) {
@@ -44,6 +45,14 @@ class Includer {
         this.includePaths.push(path);
     }
 
+    getFullIncludePath(filename){
+        for (const includePath of this.includePaths){
+            const fullpath = Path.join(includePath, filename);
+            if (FS.existsSync(fullpath)) return fullpath;
+        }
+        return filename;
+    }
+
     process() {
         if (!this.ctx) return;
 
@@ -75,16 +84,18 @@ class Includer {
 
         try {
             const record = {};
-            const input = inputText ?? FS.readFileSync(filename);
+            const fullIncludePath = this.getFullIncludePath(filename);
+            const input = inputText ?? FS.readFileSync(fullIncludePath);
             const chars = new antlr4.InputStream(input.toString());
             const lexer = new TuaLexer(chars);
 
             record.filename = filename;
+            record.fullIncludePath = fullIncludePath;
             record.tokens = new antlr4.CommonTokenStream(lexer);
             record.parser = new TuaParser(record.tokens);
             record.parser.buildParseTrees = true;
             record.parser.removeErrorListeners();
-            record.parser.addErrorListener(new TuaErrorListener(filename));
+            record.parser.addErrorListener(new TuaErrorListener(fullIncludePath));
 
             record.root = record.parser.chunk();
             record.tokenStreamRewriter = new TokenStreamRewriter(record.tokens);
