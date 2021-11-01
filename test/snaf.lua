@@ -1,16 +1,5 @@
-#include "test/basic.lua"
----> test/snaf.lua#include "test/basic.lua"
----> test/snaf.lua#include "test/basic.lua"
----> test/snaf.lua#include "test/basic.lua"
----> test/snaf.lua#include "test/basic.lua"
----> test/snaf.lua#include "test/basic.lua"
----> test/snaf.lua#include "test/basic.lua"
----> test/snaf.lua#include "test/basic.lua"
----> test/snaf.lua#include "test/basic.lua"
----> test/snaf.lua#include "test/basic.lua"
----> test/snaf.lua#include "test/basic.lua"
----> test/snaf.lua#include "test/basic.lua"
----> test/snaf.lua#include "test/basic.lua"
----> test/snaf.lua#include "test/basic.lua"
----> test/snaf.lua#include "test/basic.lua"
----> test/snaf.lua#include "test/basic.lua"
+function x(a) end
+
+super:x(5)
+
+aaa

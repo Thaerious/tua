@@ -1,0 +1,3 @@
+#include "test/included.tua"
+
+print("I am includes " .. a)

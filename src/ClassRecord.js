@@ -20,10 +20,10 @@ class ClassRecord extends TuaListener{
      * Create a new type based on a context.
      * @param {ClassDeclarationContext} ctx 
      */
-    constructor(ctx, tsr) {
+    constructor(ctx, tokenStreamRewriter) {
         super();
         this.ctx = ctx;
-        this.tsr = tsr;
+        this.tokenStreamRewriter = tokenStreamRewriter;
         this.memberFieldValues = {};
         antlr4.tree.ParseTreeWalker.DEFAULT.walk(this, ctx);
         this.newParameterList = null;
@@ -100,15 +100,15 @@ class ClassRecord extends TuaListener{
         }
 
         const text = `${this.parentType}.${ctx.NAME()}${args}`;
-        this.tsr.replace(ctx, text);
+        this.tokenStreamRewriter.replace(ctx, text);
     }
 
     enterMemberMethod(ctx){
         if (ctx.NAME().getText() === "constructor"){
-            this.newParameterList = ctx.funcParamList();
+            this.newParameterList = ctx.parlist();
         }
 
-        this.tsr.replace(ctx.NAME(), `function ${this.name}:${ctx.NAME().getText()}`);
+        this.tokenStreamRewriter.replace(ctx.NAME(), `function ${this.name}:${ctx.NAME().getText()}`);
     }
 
     enterMemberField(ctx){
@@ -125,12 +125,12 @@ class ClassRecord extends TuaListener{
         }
 
         const interval = ctx.getSourceInterval();
-        const tokens = this.tsr.tokenStream;
+        const tokens = this.tokenStreamRewriter.tokenStream;
 
         const left = tokens.getHiddenTokensToLeft(interval.start, 2);
-        for (let t of left) this.tsr.remove(t);
+        for (let t of left) this.tokenStreamRewriter.remove(t);
 
-        this.tsr.remove(ctx);
+        this.tokenStreamRewriter.remove(ctx);
     }
 
     enterClassHead(ctx){
@@ -139,8 +139,8 @@ class ClassRecord extends TuaListener{
     }
 
     exitClassDeclaration(ctx){
-        this.tsr.replace(ctx.classHead(), this.printObject());  
-        this.tsr.replace(ctx.classBody().END(), "");              
+        this.tokenStreamRewriter.replace(ctx.classHead(), this.printObject());  
+        this.tokenStreamRewriter.replace(ctx.classBody().END(), "");              
     }
 };
 

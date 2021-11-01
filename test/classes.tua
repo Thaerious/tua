@@ -1,8 +1,12 @@
+local a, b, c;
+c = a - b;
+
 class FooBar
     x, y, z;    
 
     constructor(a, b)
-        self.x = a + b;
+        c = a - b;
+        self.x = c;
     end
 
     foo()

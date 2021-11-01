@@ -1,48 +1,78 @@
-grammar Tua;
+/*
+BSD License
 
-chunk : includes? block EOF ;
-includes : include (include)* ;
-include : '#include' string ;
-block : statement* last_statement? ;
+Copyright (c) 2013, Kazunori Sakamoto
+Copyright (c) 2016, Alexander Alexeev
+All rights reserved.
 
-last_statement
-    : 'return' explist?
-    | 'break'
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions
+are met:
+
+1. Redistributions of source code must retain the above copyright
+   notice, this list of conditions and the following disclaimer.
+2. Redistributions in binary form must reproduce the above copyright
+   notice, this list of conditions and the following disclaimer in the
+   documentation and/or other materials provided with the distribution.
+3. Neither the NAME of Rainer Schuster nor the NAMEs of its contributors
+   may be used to endorse or promote products derived from this software
+   without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+This grammar file derived from:
+
+    Lua 5.3 Reference Manual
+    http://www.lua.org/manual/5.3/manual.html
+
+    Lua 5.2 Reference Manual
+    http://www.lua.org/manual/5.2/manual.html
+
+    Lua 5.1 grammar written by Nicolai Mainiero
+    http://www.antlr3.org/grammar/1178608849736/Lua.g
+
+Tested by Kazunori Sakamoto with Test suite for Lua 5.2 (http://www.lua.org/tests/5.2/)
+
+Tested by Alexander Alexeev with Test suite for Lua 5.3 http://www.lua.org/tests/lua-5.3.2-tests.tar.gz
+*/
+
+grammar Lua;
+
+chunk
+    : block EOF
     ;
 
-statement
+block
+    : stat* retstat?
+    ;
+
+stat
     : ';'
     | varlist '=' explist
     | functioncall
     | label
     | 'break'
     | 'goto' NAME
-    | 'do' block END
-    | 'while' exp 'do' block END
+    | 'do' block 'end'
+    | 'while' exp 'do' block 'end'
     | 'repeat' block 'until' exp
-    | 'if' exp 'then' block ('elseif' exp 'then' block)* ('else' block)? END
-    | 'for' NAME '=' exp ',' exp (',' exp)? 'do' block END
-    | 'for' namelist 'in' explist 'do' block END
+    | 'if' exp 'then' block ('elseif' exp 'then' block)* ('else' block)? 'end'
+    | 'for' NAME '=' exp ',' exp (',' exp)? 'do' block 'end'
+    | 'for' namelist 'in' explist 'do' block 'end'
     | 'function' funcname funcbody
     | 'local' 'function' NAME funcbody
     | 'local' attnamelist ('=' explist)?
-    | classDeclaration
-    | superCall
     ;
-
-classDeclaration : classHead classBody ;
-classHead : 'class' className ('extends' parentName)? ;
-className : NAME;
-parentName : NAME;
-classBody : classElement* END ;
-classElement : memberField | memberMethod ;
-memberField  : nameExpList ';'?;
-memberMethod : NAME '(' parlist? ')' block END ;
-nameExpList : namelist ('=' explist)?; // was ('=' explist)*
-superCall : SUPER ':' NAME args ;
-
-SUPER: 'super' ;
-END: 'end' ;
 
 attnamelist
     : NAME attrib (',' NAME attrib)*
@@ -104,12 +134,12 @@ functioncall
     ;
 
 varOrExp
-    : var_ 
-    | '(' exp ')'
-    | superCall
+    : var_ | '(' exp ')'
     ;
 
-var_ : (NAME | '(' exp ')' varSuffix) varSuffix* ;
+var_
+    : (NAME | '(' exp ')' varSuffix) varSuffix*
+    ;
 
 varSuffix
     : nameAndArgs* ('[' exp ']' | '.' NAME)
@@ -118,6 +148,20 @@ varSuffix
 nameAndArgs
     : (':' NAME)? args
     ;
+
+/*
+var_
+    : NAME | prefixexp '[' exp ']' | prefixexp '.' NAME
+    ;
+
+prefixexp
+    : var_ | functioncall | '(' exp ')'
+    ;
+
+functioncall
+    : prefixexp args | prefixexp ':' NAME args
+    ;
+*/
 
 args
     : '(' explist? ')' | tableconstructor | string
@@ -128,10 +172,12 @@ functiondef
     ;
 
 funcbody
-    : '(' parlist? ')' block END
+    : '(' parlist? ')' block 'end'
     ;
 
-parlist : namelist (',' '...')? | '...' ;
+parlist
+    : namelist (',' '...')? | '...'
+    ;
 
 tableconstructor
     : '{' fieldlist? '}'
@@ -161,11 +207,11 @@ operatorComparison
 operatorStrcat
 	: '..';
 
-operatorMulDivMod
-	: '*' | '/' | '%' | '//';
-
 operatorAddSub
 	: '+' | '-';
+
+operatorMulDivMod
+	: '*' | '/' | '%' | '//';
 
 operatorBitwise
 	: '&' | '|' | '~' | '<<' | '>>';
@@ -275,7 +321,7 @@ HexDigit
     ;
 
 COMMENT
-    : '--[' NESTED_STR ']' -> channel(1)
+    : '--[' NESTED_STR ']' -> channel(HIDDEN)
     ;
 
 LINE_COMMENT
@@ -285,11 +331,11 @@ LINE_COMMENT
     | '[' '='* ~('='|'['|'\r'|'\n') ~('\r'|'\n')*   // --[==AA
     | ~('['|'\r'|'\n') ~('\r'|'\n')*                // --AAA
     ) ('\r\n'|'\r'|'\n'|EOF)
-    -> channel(1)
+    -> channel(HIDDEN)
     ;
 
 WS
-    : [ \t\u000C\r\n]+ -> channel(2)
+    : [ \t\u000C\r\n]+ -> skip
     ;
 
 SHEBANG
