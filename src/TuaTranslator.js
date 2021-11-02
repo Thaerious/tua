@@ -6,7 +6,6 @@ import TuaParser from "../antlr/src/TuaParser.js";
 import TuaLexer from "../antlr/src/TuaLexer.js";
 import FS from "fs";
 import { error } from "antlr4";
-import { setUncaughtExceptionCaptureCallback } from "process";
 import Path from "path";
 
 class TreeNode {
