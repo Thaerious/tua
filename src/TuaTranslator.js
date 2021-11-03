@@ -29,23 +29,24 @@ class TreeNode {
     }
 }
 
+/**
+ * The Includer is responsible for maintaining a list of all source files.
+ * The files get returned in the order in which they are included.
+ */
 class Includer {
-    /**
-     * @param {IncludesContext} ctx
-     */
-    constructor(ctx) {
-        this.ctx = ctx;
+
+    constructor() {
         this.records = {};
         this._order = new TreeNode();
         this.includePaths = ["."];
     }
 
-    addIncludePath(path){
-        this.includePaths.push(path);
+    addIncludePath(...paths){
+        for (const path of paths) this.includePaths.push(path);
     }
 
     getFullIncludePath(filename){
-        for (const includePath of this.includePaths){
+        for (const includePath of this.includePaths){            
             const fullpath = Path.join(includePath, filename);
             if (FS.existsSync(fullpath)) return fullpath;
         }
@@ -70,11 +71,11 @@ class Includer {
      * This method performs the code lex & parse.
      * 
      * @param {*} filename path of the file to include
-     * @param {IncludeContext} includeContext used for error reporting
+     * @param {IncludeContext} includeContext AST context object used for error reporting
      * @param {*} parent record for the parent file
      * @returns
      */
-    add(filename, inputText = undefined, includeContext = undefined, parent = undefined) {
+    add(filename, includeContext = undefined, parent = undefined) {
         if (this.records[filename]) {
             const msg = `Warning: ${parent?.filename} ${includeContext.start.line}:${includeContext.start.column} file previously included: ${filename}`;
             console.error(msg);
@@ -84,7 +85,7 @@ class Includer {
         try {
             const record = {};
             const fullIncludePath = this.getFullIncludePath(filename);
-            const input = inputText ?? FS.readFileSync(fullIncludePath);
+            const input = FS.readFileSync(fullIncludePath);
             const chars = new antlr4.InputStream(input.toString());
             const lexer = new TuaLexer(chars);
 
@@ -104,7 +105,7 @@ class Includer {
             new TuaIncludeParser(this, record).run();
         } catch (err) {
             if (includeContext) {
-                const msg = `Line ${includeContext.start.line}:${includeContext.start.column} include file not found: ${filename}`;
+                const msg = `${parent?.filename ?? ""} ${includeContext.start.line}:${includeContext.start.column}\n\tinclude file not found: '${filename}'`;
                 console.error(msg);
             } else {
                 console.error(`Could not open file ${filename}`);
@@ -150,7 +151,7 @@ class TuaIncludeParser {
             let filename = include.string().getText();
             filename = filename.substr(1, filename.length - 2);
             const parent = this.record.filename;
-            this.includer.add(filename, undefined, include, this.record);
+            this.includer.add(filename, include, this.record);
             const text = this.record.tokens.getText(include);
             this.record.tokenStreamRewriter.replace(include, `---- ${text}`);
         }
@@ -176,21 +177,29 @@ class TuaTranslator {
         this.includer = new Includer();
     }
 
+    addIncludePath(...paths){
+        this.includer.addIncludePath(...paths);
+    }
+
     getRecord(index) {
         return this.includer.records[this.includer.order[index]];
     }
 
     parseClasses() {
         for (let filename in this.includer.records) {
-            // console.log("source: " + filename);
             const record = this.includer.records[filename];
             const classParser = new TuaClassParser(record.tokenStreamRewriter);
             antlr4.tree.ParseTreeWalker.DEFAULT.walk(classParser, record.root);
         }
     }
 
-    addSource(filepath, inputText = undefined) {
-        this.includer.add(filepath, inputText);
+    /**
+     * Add a source file to this project.
+     * The include paths will be searched for a file matching sourcePath.
+     * @param {String} sourcePath 
+     */
+    addSource(sourcePath) {
+        this.includer.add(sourcePath);
     }
 
     printSource(filename) {

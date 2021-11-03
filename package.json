@@ -12,5 +12,8 @@
   "dependencies": {
     "antlr4": "^4.9.2"
   },
-  "type": "module"
+  "type": "module",
+  "devDependencies": {
+    "mocha": "^9.1.3"
+  }
 }
