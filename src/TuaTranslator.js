@@ -9,14 +9,26 @@ import { error } from "antlr4";
 import Path from "path";
 
 class TreeNode {
-    constructor(data = null) {
+    constructor(data = null, parent = null) {
         this.data = data;
         this.children = [];
+        this._parent = parent;
+    }
+
+    get parent(){
+        return this._parent
+    }
+
+    get root(){
+        let current = this;
+        while (current.parent) current = current.parent;
+        return current;
     }
 
     addChild(data) {
-        const childNode = new TreeNode(data);
+        const childNode = new TreeNode(data, this);
         this.children.push(childNode);
+        return childNode
     }
 
     collect(array = []) {
@@ -24,8 +36,16 @@ class TreeNode {
             child.collect(array);
         }
 
-        if (this.data) array.unshift(this.data);
+        if (this.data) array.push(this.data);
         return array;
+    }
+
+    toString(depth = 0, str = ""){
+        str = `${str}${depth}${"  ".repeat(depth)} -- ${this.data}\n`;
+        for (let child of this.children) {
+            str = child.toString(depth + 1, str);
+        }
+        return str;
     }
 }
 
@@ -37,7 +57,6 @@ class Includer {
 
     constructor() {
         this.records = {};
-        this._order = new TreeNode();
         this.includePaths = ["."];
     }
 
@@ -78,7 +97,7 @@ class Includer {
     add(filename, includeContext = undefined, parent = undefined) {
         if (this.records[filename]) {
             const msg = `Warning: ${parent?.filename} ${includeContext.start.line}:${includeContext.start.column} file previously included: ${filename}`;
-            console.error(msg);
+            console.log(msg);
             return;
         }
 
@@ -97,12 +116,16 @@ class Includer {
             record.parser.removeErrorListeners();
             record.parser.addErrorListener(new TuaErrorListener(fullIncludePath));
 
+            /* this starts the antlr parser */
             record.root = record.parser.chunk();
             record.tokenStreamRewriter = new TokenStreamRewriter(record.tokens);
-
             this.records[filename] = record;
-            this._order.addChild(filename);
-            new TuaIncludeParser(this, record).run();
+
+            if (!this._order) this._order = new TreeNode(filename);
+            else this._order = this._order.addChild(filename);
+
+            new TuaIncludeParser(this, record).run(); // recursivly called on #include nodes
+            if (this._order.parent) this._order = this._order.parent;
         } catch (err) {
             if (includeContext) {
                 const msg = `${parent?.filename ?? ""} ${includeContext.start.line}:${includeContext.start.column}\n\tinclude file not found: '${filename}'`;
@@ -114,7 +137,7 @@ class Includer {
         }
     }
 
-    get order() {
+    get order() {        
         return this._order.collect();
     }
 }
@@ -147,6 +170,7 @@ class TuaIncludeParser {
 
         /* Get all #include statements from the antlr AST */
         /* replace the statements with a REM statement.   */
+        /* run the includer add function on that include  */
         for (let include of this.record.root.includes().include()) {
             let filename = include.string().getText();
             filename = filename.substr(1, filename.length - 2);
@@ -199,6 +223,7 @@ class TuaTranslator {
      * @param {String} sourcePath 
      */
     addSource(sourcePath) {
+        this.rootfile = this.rootfile ?? sourcePath;
         this.includer.add(sourcePath);
     }
 
@@ -215,7 +240,12 @@ class TuaTranslator {
      */
     toString() {
         let rvalue = "";
-        const last = this.includer.order[this.includer.order.length - 1];
+  
+        if (this.rootfile.indexOf("global.tua") !== -1){
+            console.log(this.rootfile);
+            console.log(this.includer._order.toString());
+            console.log(this.includer.order);
+        }
 
         for (let i = 0; i < this.includer.order.length - 1; i++) {
             const filename = this.includer.order[i];
